@@ -1,0 +1,28 @@
+timeout: 54000s
+steps:
+  - id: build docker
+    name: gcr.io/kaniko-project/executor:latest
+    args:
+      - --context=dir:///workspace
+      - --dockerfile=/workspace/frontend/teacher-academy-web/Dockerfile
+      - --destination=asia.gcr.io/$PROJECT_ID/teacher-academy-web:$SHORT_SHA
+      - --cache=true
+  - id: deploy secret
+    name: gcr.io/cloud-builders/gke-deploy
+    args:
+      - run
+      - --location=${_CLUSTER_LOCATION}
+      - --cluster=${_CLUSTER_NAME}
+      - --namespace=${_CLUSTER_NAME}
+      - --filename=/workspace/infrastructure/${_CLUSTER_NAME}/secret/teacher-academy-web.yml
+      - --output=/workspace/output/secret
+  - id: deploy service
+    name: gcr.io/cloud-builders/gke-deploy
+    args:
+      - run
+      - --filename=/workspace/frontend/teacher-academy-web/kube.${_CLUSTER_NAME}.yaml
+      - --image=asia.gcr.io/$PROJECT_ID/teacher-academy-web:$SHORT_SHA
+      - --cluster=${_CLUSTER_NAME}
+      - --location=${_CLUSTER_LOCATION}
+      - --namespace=${_CLUSTER_NAME}
+      - --timeout=60m0s

@@ -1,0 +1,74 @@
+---
+apiVersion: 'apps/v1'
+kind: 'Deployment'
+metadata:
+  namespace: 'exam-sit'
+  name: 'exam-web'
+  labels:
+    app: 'exam-web'
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: 'exam-web'
+  template:
+    metadata:
+      labels:
+        app: 'exam-web'
+    spec:
+      containers:
+        - name: 'exam-web'
+          image: 'asia.gcr.io/aksorn-dev-318409/exam-web'
+          resources:
+            limits:
+              cpu: '1.00'
+              memory: '512M'
+            requests:
+              cpu: '0.10'
+              memory: '256M'
+          envFrom:
+            - secretRef:
+                name: 'exam-web'
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+          readinessProbe:
+            httpGet:
+              path: /healthz/readiness
+              port: 3000
+---
+apiVersion: 'autoscaling/v2beta1'
+kind: 'HorizontalPodAutoscaler'
+metadata:
+  namespace: 'exam-sit'
+  name: 'exam-web'
+  labels:
+    app: 'exam-web'
+spec:
+  scaleTargetRef:
+    kind: 'Deployment'
+    name: 'exam-web'
+    apiVersion: 'apps/v1'
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: 'Resource'
+      resource:
+        name: 'cpu'
+        targetAverageUtilization: 80
+---
+apiVersion: 'v1'
+kind: 'Service'
+metadata:
+  namespace: 'exam-sit'
+  name: 'exam-web'
+  labels:
+    app: 'exam-web'
+spec:
+  ports:
+    - protocol: 'TCP'
+      port: 3000
+  selector:
+    app: 'exam-web'
+  type: 'NodePort'
